@@ -30,8 +30,12 @@
 #define IMAGE_REGISTER 0x24
 #define COMMAND 0xfd
 
-// general definitions - buffer size of 144 pixels
+// general definitions - buffer size of 144 pixels (defined by controller)
 #define BUFFER_SIZE 0x90
+
+// dimensions
+#define WIDTH 17
+#define HEIGHT 7
 
 // helper functions
 int write_byte_to_register(uint8_t reg, uint8_t value) {
@@ -58,14 +62,31 @@ int write_bytes_to_register(uint8_t reg, uint8_t *values, size_t n) {
   return 0;
 }
 
+// map "logical" position (following X-window) to electronic position
+void map_buffer_to_pixels(uint8_t * in, uint8_t * out) {
+  for (uint8_t j = 0; j < BUFFER_SIZE; j++) {
+    uint8_t col = j / 8;
+    uint8_t row = j % 8;
+    uint8_t fast, slow;
+    if (col % 2) {
+      fast = WIDTH / 2 - col / 2 - 1;
+      slow = HEIGHT - row - 1;
+    } else {
+      fast = WIDTH / 2 + col / 2;
+      slow = row;
+    }
+    if (slow > HEIGHT) continue;
+    if (fast > WIDTH) continue;
+    out[j] = in[fast + slow * WIDTH];
+  }
+}
+
 int write_picture_to_register(uint8_t *buffer) {
   uint8_t scratch[BUFFER_SIZE + 1];
 
-  // can I do this without a copy operation? use memcpy?
   scratch[0] = 0x24;
-  for (int j = 0; j < BUFFER_SIZE; j++) {
-    scratch[j + 1] = buffer[j];
-  }
+
+  map_buffer_to_pixels(buffer, &scratch[1]);
 
   i2c_write_blocking(I2C_PORT, ADDRESS, scratch, BUFFER_SIZE + 1, false);
 
@@ -98,7 +119,7 @@ int main() {
   write_byte_to_register(COMMAND, 0x0);
 
   // enable correct LED addresses (17 x lower 7, 1 x none)
-  for (size_t j = 0; j < 17; j++) {
+  for (size_t j = 0; j < WIDTH; j++) {
     buffer[j] = 0x7f;
   }
   buffer[17] = 0x0;
@@ -106,8 +127,8 @@ int main() {
   write_byte_to_register(COMMAND, 0x0);
 
   while (true) {
-    for (size_t n = 0; n < BUFFER_SIZE; n++) {
-      for (int j = 0; j < BUFFER_SIZE; j++) {
+    for (size_t n = 0; n < WIDTH * HEIGHT; n++) {
+      for (int j = 0; j < WIDTH * HEIGHT; j++) {
         buffer[j] = 0x0;
       }
       buffer[n] = 0xf;
