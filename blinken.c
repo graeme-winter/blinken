@@ -46,27 +46,20 @@ int write_byte_to_register(uint8_t reg, uint8_t value) {
 }
 
 int write_bytes_to_register(uint8_t reg, uint8_t *values, size_t n) {
-  uint8_t data[n+1];
+  uint8_t data[n + 1];
 
   data[0] = reg;
   for (size_t j = 0; j < n; j++) {
-    data[j+1] = values[j];
+    data[j + 1] = values[j];
   }
 
-  i2c_write_blocking(I2C_PORT, ADDRESS, data, n+1, false);
+  i2c_write_blocking(I2C_PORT, ADDRESS, data, n + 1, false);
 
   return 0;
 }
 
-int write_picture_to_register(uint8_t picture, uint8_t *buffer) {
+int write_picture_to_register(uint8_t *buffer) {
   uint8_t scratch[BUFFER_SIZE + 1];
-
-  // push register to select the picture to write - use first two bytes
-  // of scratch
-  scratch[0] = FRAME_MODE;
-  scratch[1] = picture;
-
-  i2c_write_blocking(I2C_PORT, ADDRESS, scratch, 2, false);
 
   // can I do this without a copy operation? use memcpy?
   scratch[0] = 0x24;
@@ -110,25 +103,19 @@ int main() {
   }
   buffer[17] = 0x0;
   write_bytes_to_register(FRAME_MODE, buffer, 18);
-
-  // write something interesting (ish) to the buffer
-  int odd = 0;
+  write_byte_to_register(COMMAND, 0x0);
 
   while (true) {
-    if (odd) {
-      odd = 0;
-    } else {
-      odd = 1;
-    }
-    for (int j = 0; j < BUFFER_SIZE; j++) {
-      buffer[j] = ((odd + j) % 2) * 0xf;
-      printf("%d %d\n", j, buffer[j]);
-    }
+    for (size_t n = 0; n < BUFFER_SIZE; n++) {
+      for (int j = 0; j < BUFFER_SIZE; j++) {
+        buffer[j] = 0x0;
+      }
+      buffer[n] = 0xf;
 
-    write_picture_to_register(0x0, buffer);
-    write_byte_to_register(FRAME_NO, 0x0);
-
-    sleep_ms(1000);
+      write_picture_to_register(buffer);
+      printf("%d\n", n);
+      sleep_ms(200);
+    }
   }
   return 0;
 }
