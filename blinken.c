@@ -134,8 +134,6 @@ int main() {
       buffer[n] = 0xf;
 
       write_picture_to_register(buffer);
-      printf("%d\n", n);
-      sleep_ms(200);
     }
   }
   return 0;
