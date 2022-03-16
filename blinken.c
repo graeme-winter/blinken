@@ -49,11 +49,11 @@ int write_byte_to_register(uint8_t reg, uint8_t value) {
   return 0;
 }
 
-int write_bytes_to_register(uint8_t reg, uint8_t *values, size_t n) {
+int write_bytes_to_register(uint8_t reg, uint8_t *values, uint8_t n) {
   uint8_t data[n + 1];
 
   data[0] = reg;
-  for (size_t j = 0; j < n; j++) {
+  for (uint8_t j = 0; j < n; j++) {
     data[j + 1] = values[j];
   }
 
@@ -63,7 +63,7 @@ int write_bytes_to_register(uint8_t reg, uint8_t *values, size_t n) {
 }
 
 // map "logical" position (following X-window) to electronic position
-void map_buffer_to_pixels(uint8_t * in, uint8_t * out) {
+void map_buffer_to_pixels(uint8_t *in, uint8_t *out) {
   for (uint8_t j = 0; j < BUFFER_SIZE; j++) {
     uint8_t col = j / 8;
     uint8_t row = j % 8;
@@ -75,8 +75,10 @@ void map_buffer_to_pixels(uint8_t * in, uint8_t * out) {
       fast = WIDTH / 2 + col / 2;
       slow = row;
     }
-    if (slow > HEIGHT) continue;
-    if (fast > WIDTH) continue;
+    if (slow > HEIGHT)
+      continue;
+    if (fast > WIDTH)
+      continue;
     out[j] = in[fast + slow * WIDTH];
   }
 }
@@ -119,7 +121,7 @@ int main() {
   write_byte_to_register(COMMAND, 0x0);
 
   // enable correct LED addresses (17 x lower 7, 1 x none)
-  for (size_t j = 0; j < WIDTH; j++) {
+  for (uint8_t j = 0; j < WIDTH; j++) {
     buffer[j] = 0x7f;
   }
   buffer[17] = 0x0;
@@ -127,7 +129,7 @@ int main() {
   write_byte_to_register(COMMAND, 0x0);
 
   while (true) {
-    for (size_t n = 0; n < WIDTH * HEIGHT; n++) {
+    for (uint8_t n = 0; n < WIDTH * HEIGHT; n++) {
       for (int j = 0; j < WIDTH * HEIGHT; j++) {
         buffer[j] = 0x0;
       }
