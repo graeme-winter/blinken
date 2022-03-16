@@ -28,6 +28,7 @@
 #define NULL2 0x6
 #define SHUTDOWN 0xa
 #define IMAGE_REGISTER 0x24
+#define COMMAND 0xfd
 
 // general definitions - buffer size of 144 pixels
 #define BUFFER_SIZE 0x90
@@ -40,6 +41,19 @@ int write_byte_to_register(uint8_t reg, uint8_t value) {
   data[1] = value;
 
   i2c_write_blocking(I2C_PORT, ADDRESS, data, 2, false);
+
+  return 0;
+}
+
+int write_bytes_to_register(uint8_t reg, uint8_t *values, size_t n) {
+  uint8_t data[n+1];
+
+  data[0] = reg;
+  for (size_t j = 0; j < n; j++) {
+    data[j+1] = values[j];
+  }
+
+  i2c_write_blocking(I2C_PORT, ADDRESS, data, n+1, false);
 
   return 0;
 }
@@ -77,32 +91,44 @@ int main() {
   gpio_pull_up(I2C_SDA);
   gpio_pull_up(I2C_SCL);
 
-  // initialise device
+  // initialise device - point to function register
+  write_byte_to_register(COMMAND, 0xb);
+
   write_byte_to_register(FRAME_MODE, 0x0);
   write_byte_to_register(FRAME_NO, 0x0);
   write_byte_to_register(NULL0, 0x0);
   write_byte_to_register(NULL1, 0x0);
   write_byte_to_register(NULL2, 0x0);
-  write_byte_to_register(SHUTDOWN, 0x0);
+  write_byte_to_register(SHUTDOWN, 0x1);
+
+  // switch to frame 0
+  write_byte_to_register(COMMAND, 0x0);
+
+  // enable correct LED addresses (17 x lower 7, 1 x none)
+  for (size_t j = 0; j < 17; j++) {
+    buffer[j] = 0x7f;
+  }
+  buffer[17] = 0x0;
+  write_bytes_to_register(FRAME_MODE, buffer, 18);
 
   // write something interesting (ish) to the buffer
   int odd = 0;
 
   while (true) {
-    if (odd == 0) {
-      odd = 1;
-    } else {
+    if (odd) {
       odd = 0;
+    } else {
+      odd = 1;
     }
-
     for (int j = 0; j < BUFFER_SIZE; j++) {
-      buffer[j] = (odd + j % 2) * 0x8;
+      buffer[j] = ((odd + j) % 2) * 0xf;
+      printf("%d %d\n", j, buffer[j]);
     }
 
     write_picture_to_register(0x0, buffer);
     write_byte_to_register(FRAME_NO, 0x0);
 
-    sleep_ms(100);
+    sleep_ms(1000);
   }
   return 0;
 }
